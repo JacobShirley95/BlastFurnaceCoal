@@ -7,6 +7,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 
 import org.powerbot.script.Area;
 import org.powerbot.script.Condition;
@@ -14,6 +15,8 @@ import org.powerbot.script.PaintListener;
 import org.powerbot.script.PollingScript;
 import org.powerbot.script.Script.Manifest;
 import org.powerbot.script.rt4.Bank.Amount;
+import org.powerbot.script.rt4.Game.Tab;
+import org.powerbot.script.rt4.ChatOption;
 import org.powerbot.script.rt4.ClientContext;
 import org.powerbot.script.rt4.Component;
 import org.powerbot.script.rt4.Constants;
@@ -22,6 +25,7 @@ import org.powerbot.script.rt4.GeItem;
 import org.powerbot.script.rt4.Item;
 import org.powerbot.script.rt4.ItemQuery;
 import org.powerbot.script.rt4.Npc;
+import org.powerbot.script.rt4.TextQuery;
 import org.powerbot.script.rt4.Widget;
 
 @Manifest(name="BlastFurnaceCoal", description="description", properties="")
@@ -98,7 +102,11 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 	CarryMode carryMode = CarryMode.COAL;
 	
 	int barProfit = getBarProfit(BAR);
-	int profit = 0;
+	int barsMade = 0;
+	
+	final boolean needCoffer() {
+		return ctx.skills.level(Constants.SKILLS_SMITHING) < 60;
+	}
 	
 	final static int getBarProfit(BarType type) {
 		int coalPrice = new GeItem(COAL_ID).price;
@@ -111,7 +119,13 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 	final int getProfitPerHour() {
 		long runTime = getRuntime();
 
-		return (int) (3600000d / (long) runTime * (double) (profit));
+		return (int) (3600000d / (long) runTime * (double) (barsMade * barProfit));
+	}
+	
+	final int getBarsPerHour() {
+		long runTime = getRuntime();
+
+		return (int) (3600000d / (long) runTime * (double) (barsMade));
 	}
 	
 	final boolean walkToBank() {
@@ -119,43 +133,63 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 
 		if (bankPos.distanceTo(ctx.players.local().tile()) > 5) {
 			ctx.movement.step(bankPos);
-			ctx.input.move(getRandom(BANK_MOUSE_MOVE_AREA));
+			hoverBankArea();
 		}
 
 		return waitTillReasonableStop(5);
 	}
 	
+	final boolean hoverBankArea() {
+		return ctx.input.move(getRandom(BANK_MOUSE_MOVE_AREA));
+	}
+	
 	final boolean withdrawAllSmartId(int id) {
 		//return ctx.inventory.select().id(id).isEmpty() ? ctx.bank.withdraw(id, amount) : true;
-		return ctx.inventory.select().id(id).isEmpty() ? ctx.bank.select().id(id).peek().interact("Withdraw-All") : true;
+		return ctx.inventory.select().count() != 28 ? ctx.bank.select().id(id).peek().interact("Withdraw-All") : true;
 	}
 	
 	final boolean withdrawSmartId(int id, int amount) {
 		//return ctx.inventory.select().id(id).isEmpty() ? ctx.bank.withdraw(id, amount) : true;
-		return ctx.inventory.select().id(id).isEmpty() ? ctx.bank.withdraw(id, amount) : true;
+		return ctx.inventory.select().count() != 28 ? ctx.bank.withdraw(id, amount) : true;
 	}
 	
 	final boolean bank() {
-		profit += ctx.inventory.select().id(BAR.barId).count() * barProfit;
+		barsMade += ctx.inventory.select().id(BAR.barId).count();
 		
 		if (ctx.bank.open()) {
-			ctx.bank.depositAllExcept(COAL_BAG_ID, BAR.oreId);
+			ctx.bank.depositAllExcept(COAL_BAG_ID);
+			
+			if (getCofferAmount() < MIN_COFFER_AMOUNT) {
+				withdrawMoney(BLAST_FURNACE_AMOUNT);
+				ctx.bank.close();
+				return true;
+			}
 			
 			if (ctx.inventory.select().id(COAL_BAG_ID).isEmpty())
 				ctx.bank.withdraw(COAL_BAG_ID, 1);
 			
-			withdrawAllSmartId(COAL_ID);
-			Condition.sleep(500);
-			
-			ctx.bank.close();
-			ctx.inventory.select().id(COAL_BAG_ID).peek().interact("Fill");
-			ctx.bank.open();
-			
-			ctx.bank.deposit(COAL_ID, Amount.ALL);
-			
-			if (getCofferAmount() < MIN_COFFER_AMOUNT) {
-				withdrawMoney(BLAST_FURNACE_AMOUNT);
+			if (carryMode == CarryMode.COAL) {
+				withdrawAllSmartId(COAL_ID);
+				Condition.sleep(500);
+				
+				for (int tries = 0; tries < 5; tries++) {
+					ctx.bank.close();
+					ctx.game.tab(Tab.INVENTORY);
+					ctx.inventory.select().id(COAL_BAG_ID).peek().interact("Fill");
+					if (waitItemGone(COAL_ID)) {
+						ctx.bank.open();
+						break;
+					}
+					
+					System.out.println(ctx.chat.select().peek().text());
+					if (ctx.chat.canContinue()){
+						break;
+					}
+				}
 			}
+			
+			if (carryMode == CarryMode.COAL && ctx.inventory.select().id(COAL_ID).count() != 27)
+				ctx.bank.deposit(COAL_ID, Amount.ALL);
 			
 			if (ctx.movement.energyLevel() < 20) {
 				if (ctx.inventory.select().count() == 28)
@@ -167,14 +201,17 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 						
 						ctx.inventory.select().id(staminaPot).peek().interact("Drink");
 						if (ctx.bank.open())
-							ctx.bank.depositAllExcept(COAL_BAG_ID, GOLD_ID, BAR.oreId);
+							ctx.bank.depositAllExcept(COAL_BAG_ID, GOLD_ID, COAL_ID, BAR.oreId);
 						
 						break;
 					}
 				}
 			}
 			
-			withdrawAllSmartId(BAR.oreId);
+			if (carryMode == CarryMode.COAL)
+				withdrawAllSmartId(COAL_ID);
+			else
+				withdrawAllSmartId(BAR.oreId);
 			
 			return true;
 		}
@@ -235,7 +272,31 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 		return ctx.movement.distance(ctx.movement.destination());
 	}
 	
-	final boolean useConveyer(int id) {
+	final boolean clickConveyer(GameObject conveyer) {
+		if (conveyer.interact("Put-ore-on"))
+			return true;
+		
+		return false;
+	}
+	
+	final boolean waitItemGone(int id) {
+		int c = ctx.inventory.select().id(id).count();
+		if (c == 0)
+			return true;
+		
+		if (Condition.wait(new Callable<Boolean>() {
+			@Override
+			public Boolean call() throws Exception {
+				return ctx.inventory.select().id(id).count() < c;
+			}
+		}, 50, 60)) {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	final boolean useConveyer() {
 		GameObject conveyer = getConveyer();
 		
 		long timer = System.currentTimeMillis() + 9000;
@@ -250,23 +311,36 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 		}
 		
 		for (int tries = 0; tries < 5; tries++) {
-			if (conveyer.interact("Put-ore-on")) {
-				int c = ctx.inventory.select().id(id).count();
-				if (Condition.wait(new Callable<Boolean>() {
-					@Override
-					public Boolean call() throws Exception {
-						return ctx.inventory.select().id(id).count() < c;
+			if (clickConveyer(conveyer)) {
+				if (carryMode == CarryMode.COAL) {
+					ctx.inventory.select().id(COAL_BAG_ID).peek().hover();
+					waitItemGone(COAL_ID);
+					
+					if (getChatBoxText().contains("You must ask the foreman's permission")) {
+						handleForeman();
+						state = State.BANKING;
+						return false;
 					}
-				}, 100, 30)) {
-					return true;
+					
+					if (waitEmptyCoal() && clickConveyer(conveyer)) {
+						Tile randomBankTile = BANK_AREA.getRandomTile();
+						ctx.input.move(randomBankTile.matrix(ctx).mapPoint());
+						return waitItemGone(COAL_ID);
+					}
+				} else {
+					getDispenser(false).hover();
+					if (waitItemGone(BAR.oreId))
+						return true;
+					
+					if (getChatBoxText().contains("You must ask the foreman's permission")) {
+						handleForeman();
+						state = State.BANKING;
+						return false;
+					}
 				}
 			}
-			if (getChatBoxText().contains("You must ask the foreman's permission")) {
-				handleForeman();
-				state = State.WALK_TO_BLAST;
-				return false;
-			}
 		}
+		
 		return false;
 	}
 	
@@ -331,7 +405,7 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 			return Condition.wait(new Callable<Boolean>() {
 				@Override
 				public Boolean call() throws Exception {
-					return !ctx.chat.select().text("Deposit coins.").isEmpty();
+					return !ctx.chat.select().text("Cancel").isEmpty();
 				}
 			});
 		}
@@ -368,7 +442,11 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 	final boolean handlePayment() {
 		for (int tries = 0; tries < 3; tries++) {
 			if (clickCoffer()) {
-				ctx.chat.select().text("Deposit coins.").poll().select();
+				TextQuery<ChatOption> q = ctx.chat.select().text("Deposit coins.");
+				if (q.isEmpty())
+					return false;
+				
+				q.poll().select();
 				
 				Condition.sleep(1000);
 				if (ctx.chat.canContinue()) {
@@ -460,10 +538,26 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 		return false;
 	}
 	
+	final boolean waitEmptyCoal() {
+		for (int tries = 0; tries < 5; tries++) {
+			ctx.inventory.select().id(COAL_BAG_ID).peek().interact("Empty");
+			if (Condition.wait(new Callable<Boolean>() {
+				@Override
+				public Boolean call() throws Exception {
+					return ctx.inventory.select().id(COAL_ID).count() > 0;
+				}
+			}, 50, 30)) {
+				return true;
+			} else if (ctx.chat.clickContinue()) {
+				return false;
+			}
+		}
+		return false;
+	}
+	
 	@Override
 	public void start() {
-		System.out.println(getChatBoxText());
-		//useConveyer();
+		ctx.camera.pitch(true);
 	}
 	
 	@Override
@@ -487,8 +581,10 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 			break;
 		case PAYMENT:
 			if (handlePayment()) {
-				state = State.WALK_TO_BLAST;
-			}
+				state = State.BANKING;
+			} else
+				state = State.BANKING;
+			
 			break;
 		case WALK_TO_BLAST:
 			if (walkToBlastArea()) {
@@ -496,11 +592,23 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 			}
 			break;
 		case USE_CONVEYER:
-			if (useConveyer(BAR.oreId) 
-				&& ctx.inventory.select().id(COAL_BAG_ID).peek().interact("Empty") 
-				&& useConveyer(COAL_ID)) {
+			if (carryMode == CarryMode.COAL) {
+				if (useConveyer()) {
+					state = State.WALK_TO_BANK;
+					carryMode = CarryMode.ORE;
+				} else {
+					state = State.WALK_TO_BANK;
+					carryMode = CarryMode.ORE;
+				}
+			} else {
+				if (useConveyer()) {
 					Condition.sleep(300);
 					state = State.DISPENSER;
+					carryMode = CarryMode.COAL;
+				} else {
+					state = State.DISPENSER;
+					carryMode = CarryMode.COAL;
+				}
 			}
 			break;
 		case DISPENSER:
@@ -510,11 +618,27 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 			break;
 		}
 	}
+	
+	public static String formatInterval(final long interval, boolean millisecs )
+	{
+	    final long hr = TimeUnit.MILLISECONDS.toHours(interval);
+	    final long min = TimeUnit.MILLISECONDS.toMinutes(interval) %60;
+	    final long sec = TimeUnit.MILLISECONDS.toSeconds(interval) %60;
+	    final long ms = TimeUnit.MILLISECONDS.toMillis(interval) %1000;
+	    if( millisecs ) {
+	        return String.format("%02d:%02d:%02d.%03d", hr, min, sec, ms);
+	    } else {
+	        return String.format("%02d:%02d:%02d", hr, min, sec );
+	    }
+	}
 
 	@Override
 	public void repaint(Graphics g) {
 		Graphics2D g2 = (Graphics2D) g;
 		g2.setColor(Color.green);
-		g2.drawString("Profit per hour: " + ((int)Math.round(getProfitPerHour() / 1000)), 10, 30);
+		g2.drawString("Time running: " + formatInterval(getRuntime(), false), 10, 30);
+		g2.drawString("Profit per hour: " + ((int)Math.round(getProfitPerHour() / 1000)), 10, 60);
+		g2.drawString("Bars made: " + barsMade, 10, 90);
+		g2.drawString("Bars per hour: " + getBarsPerHour(), 10, 120);
 	}
 }
