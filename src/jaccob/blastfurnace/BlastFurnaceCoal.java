@@ -249,12 +249,12 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 	}
 	
 	final boolean waitWithdraw(int start) {
-		return Condition.wait(new Condition.Check() {
+		return Condition.wait(new Callable<Boolean>() {
 			@Override
-			public boolean poll() {
+			public Boolean call() {
 				return start != ctx.inventory.select().count(true);
 			}
-		});
+		}, 50, 20);
 	}
 	
 	final boolean bankSelectSmart(int id, int amount) {
