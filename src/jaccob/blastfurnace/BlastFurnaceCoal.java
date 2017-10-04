@@ -106,7 +106,7 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 	final static Point[] BANK_MOUSE_MOVE_AREA = {new Point(292, 29), new Point(301, 81)};
 	
 	State state = State.WALK_TO_BANK;
-	CarryMode carryMode = CarryMode.ORE;
+	CarryMode carryMode = BAR.coalRatio > 1 ? CarryMode.COAL : CarryMode.ORE;
 	int oreTrip = 0;
 	
 	int barProfit = getBarProfit(BAR);
@@ -114,6 +114,12 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 	
 	final boolean needCoffer() {
 		return ctx.skills.level(Constants.SKILLS_SMITHING) < 60;
+	}
+	
+	final boolean finished() {
+		return ctx.bank.select().id(BAR.oreId).count(true) == 0 ||
+			   ctx.bank.select().id(COAL_ID).count(true) == 0 ||
+			   ctx.bank.select().id(GOLD_ID).count(true) == 0;
 	}
 	
 	final static int getBarProfit(BarType type) {
@@ -191,10 +197,10 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 	}
 	
 	public boolean bankSelect(final Item item, final Amount amount) {
-		return bankSelect(item, amount.getValue());
+		return bankSelectWithdraw(item, amount.getValue());
 	}
 	
-	public boolean bankSelect(final Item item, final int amount) {
+	public boolean bankSelectWithdraw(final Item item, final int amount) {
 		if (!ctx.bank.opened() || !item.valid() || amount < -1) {
 			return false;
 		}
@@ -248,7 +254,7 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 		return true;
 	}
 	
-	final boolean waitWithdraw(int start) {
+	final boolean waitInvChanged(int start) {
 		return Condition.wait(new Callable<Boolean>() {
 			@Override
 			public Boolean call() {
@@ -259,7 +265,7 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 	
 	final boolean bankSelectSmart(int id, int amount) {
 		if (ctx.inventory.select().count() != 28) {
-			return bankSelect(ctx.bank.select().id(id).poll(), amount);
+			return bankSelectWithdraw(ctx.bank.select().id(id).poll(), amount);
 		}
 		return false;
 	}
@@ -270,9 +276,9 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 	
 	final boolean withdrawSmart(int id, int amount, Callable<Boolean> action) {
 		final int cache = ctx.inventory.select().count(true);
-		if (bankSelect(ctx.bank.select().id(id).poll(), amount)) {
+		if (bankSelectWithdraw(ctx.bank.select().id(id).poll(), amount)) {
 			try {
-				if (action.call() && waitWithdraw(cache))
+				if (action.call() && waitInvChanged(cache))
 					return true;
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -288,6 +294,78 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 				return ctx.bank.opened();
 			}
 		}, 100, 20);
+	}
+	
+	final boolean depositSmart(int id, int amount, Callable<Boolean> action) {
+		final int cache = ctx.inventory.select().count(true);
+		if (bankSelectDeposit(id, amount)) {
+			try {
+				if (action.call() && waitInvChanged(cache))
+					return true;
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		return false;
+	}
+	
+	public boolean bankSelectDeposit(final int id, final Amount amount) {
+		return bankSelectDeposit(id, amount.getValue());
+	}
+
+	/**
+	 * Deposits an item with the provided id and amount.
+	 *
+	 * @param id     the id of the item
+	 * @param amount the amount to deposit
+	 * @return <tt>true</tt> if the item was deposited, does not determine if amount was matched; otherwise <tt>false</tt>
+	 */
+	public boolean bankSelectDeposit(final int id, final int amount) {
+		if (!ctx.bank.opened() || amount < 0) {
+			return false;
+		}
+		final Item item = ctx.inventory.select().id(id).shuffle().poll();
+		if (!item.valid()) {
+			return false;
+		}
+		final int count = ctx.inventory.select().id(id).count(true);
+		final String action;
+		if (count == 1 || amount == 1) {
+			action = "Deposit";
+		} else if (amount == 0 || count <= amount) {
+			action = "Deposit-All";
+		} else if (amount == 5 || amount == 10) {
+			action = "Deposit-" + amount;
+		} else if (check(item, amount)) {
+			action = "Deposit-" + amount;
+		} else {
+			action = "Deposit-X";
+		}
+		if (item.contains(ctx.input.getLocation())) {
+			if (!(ctx.menu.click(new Filter<MenuCommand>() {
+				@Override
+				public boolean accept(final MenuCommand command) {
+					return command.action.equalsIgnoreCase(action);
+				}
+			}) || item.interact(action))) {
+				return false;
+			}
+		} else if (!item.interact(action)) {
+			return false;
+		}
+		if (action.endsWith("X")) {
+			if (!Condition.wait(new Condition.Check() {
+				@Override
+				public boolean poll() {
+					return ctx.widgets.widget(162).component(33).visible();
+				}
+			})) {
+				return false;
+			}
+			Condition.sleep();
+			ctx.input.sendln(amount + "");
+		}
+		return true;
 	}
 	
 	final boolean clickCoalBag() {
@@ -344,7 +422,7 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 		for (int tries2 = 0; tries2 < 5; tries2++) {
 			boolean opened = ctx.bank.opened();
 			if (!opened) {
-				if (!ctx.bank.nearest().tile().matrix(ctx).interact("Use")) {
+				if (ctx.bank.nearest().tile().matrix(ctx).interact("Use")) {
 					if (Condition.wait(new Callable<Boolean>() {
 						@Override
 						public Boolean call() throws Exception {
@@ -354,60 +432,71 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 						continue;
 				}
 			}
-				
-			ctx.inventory.select().id(BAR.barId).peek().hover();
-			if (waitBankOpen()) {
-				ctx.bank.depositAllExcept(COAL_BAG_ID);
-				
-				if (getCofferAmount() < MIN_COFFER_AMOUNT) {
-					withdrawMoney(BLAST_FURNACE_AMOUNT);
-					ctx.bank.close();
-					return true;
-				}
-				
-				if (ctx.inventory.select().id(COAL_BAG_ID).isEmpty())
-					ctx.bank.withdraw(COAL_BAG_ID, 1);
-				
-				if (coalFromBank()) {
-					System.out.println("SDFSDF");
-				}
-				
-				if (carryMode == CarryMode.COAL && ctx.inventory.select().id(COAL_ID).count() == 27)
-					return true;
-				else
-					ctx.bank.open();
-				
-				ctx.bank.deposit(COAL_ID, Amount.ALL);
-				
-				if (ctx.movement.energyLevel() < 20) {
-					if (ctx.inventory.select().count() == 28) {
-						ctx.bank.deposit(BAR.oreId, 1);
-						ctx.bank.deposit(COAL_ID, 1);
+			
+			if (ctx.bank.opened()) {
+				ctx.inventory.select().id(BAR.barId).peek().hover();
+				if (waitBankOpen()) {
+					depositSmart(BAR.barId, Amount.ALL.getValue(), new Callable<Boolean>() {
+						@Override
+						public Boolean call() throws Exception {
+							return ctx.bank.select().id(COAL_ID).peek().hover();
+						}
+					});
+					ctx.bank.depositAllExcept(COAL_BAG_ID);
+					
+					if (finished()) {
+						ctx.controller.stop();
+						return true;
 					}
 					
-					for (int staminaPot : STAMINA_POTS) {
-						if (ctx.bank.withdraw(staminaPot, 1)) {
-							ctx.bank.close();
-							
-							ctx.inventory.select().id(staminaPot).peek().interact("Drink");
-							if (ctx.bank.open())
-								ctx.bank.depositAllExcept(COAL_BAG_ID, GOLD_ID, COAL_ID, BAR.oreId);
-							
-							break;
+					if (getCofferAmount() < MIN_COFFER_AMOUNT) {
+						withdrawMoney(BLAST_FURNACE_AMOUNT);
+						ctx.bank.close();
+						return true;
+					}
+					
+					if (ctx.inventory.select().id(COAL_BAG_ID).isEmpty())
+						ctx.bank.withdraw(COAL_BAG_ID, 1);
+					
+					coalFromBank();
+					
+					if (carryMode == CarryMode.COAL && ctx.inventory.select().id(COAL_ID).count() == 27)
+						return true;
+					else
+						ctx.bank.open();
+					
+					ctx.bank.deposit(COAL_ID, Amount.ALL);
+					
+					if (ctx.movement.energyLevel() < 20) {
+						if (ctx.inventory.select().count() == 28) {
+							ctx.bank.deposit(BAR.oreId, 1);
+							ctx.bank.deposit(COAL_ID, 1);
+						}
+						
+						for (int staminaPot : STAMINA_POTS) {
+							if (ctx.bank.withdraw(staminaPot, 1)) {
+								ctx.bank.close();
+								
+								ctx.inventory.select().id(staminaPot).peek().interact("Drink");
+								if (ctx.bank.open())
+									ctx.bank.depositAllExcept(COAL_BAG_ID, GOLD_ID, COAL_ID, BAR.oreId);
+								
+								break;
+							}
 						}
 					}
-				}
-	
-				if (withdrawSmart(carryMode == CarryMode.COAL ? COAL_ID : BAR.oreId, Amount.ALL, new Callable<Boolean>() {
-					@Override
-					public Boolean call() throws Exception {
-						return ctx.input.move(new Tile(1939 + (int)Math.round(Math.random() * 3), 4967).matrix(ctx).mapPoint());
+		
+					if (withdrawSmart(carryMode == CarryMode.COAL ? COAL_ID : BAR.oreId, Amount.ALL, new Callable<Boolean>() {
+						@Override
+						public Boolean call() throws Exception {
+							return ctx.input.move(new Tile(1939 + (int)Math.round(Math.random() * 3), 4967).matrix(ctx).mapPoint());
+						}
+					})) {
+						return true;
 					}
-				})) {
-					System.out.println("DDONE");
-					return true;
 				}
-			}
+			} else
+				Condition.sleep(500);
 		}
 		
 		return false;
@@ -473,7 +562,6 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 	
 	final boolean walkToBlastArea() {
 		Tile random = new Tile(1939 + (int)Math.round(Math.random() * 3), 4967);
-		System.out.println(random);
 		ctx.movement.step(random);
 		
 		ctx.input.move(getRandom(BLAST_MOUSE_MOVE_AREA));
@@ -532,8 +620,11 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 				int targetId = carryMode == CarryMode.COAL ? COAL_ID : BAR.oreId;
 				
 				ctx.inventory.select().id(COAL_BAG_ID).peek().hover();
-				if (waitMultiple(itemGoneCb(targetId), widgetVisible(NEED_TO_SMELT_FIRST_ID)) == 1)
+				int res = waitMultiple(itemGoneCb(targetId), widgetVisible(NEED_TO_SMELT_FIRST_ID));
+				if (res == 1)
 					return true;
+				else if (res != 0)
+					continue;
 				
 				ctx.inventory.select().id(COAL_BAG_ID).peek().interact("Empty");
 				conveyer.hover();
@@ -781,57 +872,61 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 	
 	@Override
 	public void poll() {
-		run();
-		
-		switch (state) {
-		case WALK_TO_BANK:
-			if (walkToBank())
-				state = State.BANKING;
-			break;
-		case BANKING:
-			if (bank()) {
-				if (getCofferAmount() < MIN_COFFER_AMOUNT) {
-					ctx.bank.close();
-					state = State.PAYMENT;
-				} else {
-					state = State.WALK_TO_BLAST;
-				}
-			}
-			break;
-		case PAYMENT:
-			if (handlePayment()) {
-				state = State.BANKING;
-			} else
-				state = State.BANKING;
+		while (!ctx.controller.isStopping()) {
+			run();
 			
-			break;
-		case WALK_TO_BLAST:
-			if (walkToBlastArea()) {
-				state = State.USE_CONVEYER;
-			}
-			break;
-		case USE_CONVEYER:
-			if (carryMode == CarryMode.COAL) {
-				useConveyer();
-				state = State.WALK_TO_BANK;
-				carryMode = CarryMode.ORE;
-			} else {
-				useConveyer();
-				Condition.sleep(300);
-				state = State.DISPENSER;
-				oreTrip++;
-				
-				if (oreTrip == BAR.oreTrips) {
-					carryMode = CarryMode.COAL;
-					oreTrip = 0;
+			switch (state) {
+			case WALK_TO_BANK:
+				if (walkToBank())
+					state = State.BANKING;
+				break;
+			case BANKING:
+				if (bank()) {
+					if (getCofferAmount() < MIN_COFFER_AMOUNT) {
+						ctx.bank.close();
+						state = State.PAYMENT;
+					} else {
+						state = State.WALK_TO_BLAST;
+					}
 				}
+				break;
+			case PAYMENT:
+				if (handlePayment()) {
+					state = State.BANKING;
+				} else
+					state = State.BANKING;
+				
+				break;
+			case WALK_TO_BLAST:
+				if (walkToBlastArea()) {
+					state = State.USE_CONVEYER;
+				}
+				break;
+			case USE_CONVEYER:
+				if (carryMode == CarryMode.COAL) {
+					useConveyer();
+					state = State.WALK_TO_BANK;
+					carryMode = CarryMode.ORE;
+				} else {
+					useConveyer();
+					Condition.sleep(300);
+					state = State.DISPENSER;
+					if (BAR.coalRatio > 1) {
+						oreTrip++;
+						
+						if (oreTrip == BAR.oreTrips) {
+							carryMode = CarryMode.COAL;
+							oreTrip = 0;
+						}
+					}
+				}
+				break;
+			case DISPENSER:
+				if (handleDispenser()) {
+					state = State.WALK_TO_BANK;
+				}
+				break;
 			}
-			break;
-		case DISPENSER:
-			if (handleDispenser()) {
-				state = State.WALK_TO_BANK;
-			}
-			break;
 		}
 	}
 	
