@@ -32,6 +32,8 @@ import org.powerbot.script.rt4.Widget;
 
 import jaccob.blastfurnace.BlastFurnaceCoal.CarryMode;
 import jaccob.blastfurnace.base.Callables;
+import jaccob.blastfurnace.base.StateMachine;
+import jaccob.blastfurnace.base.TileInteraction;
 
 @Manifest(name="BlastFurnaceCoal", description="description", properties="")
 public class BlastFurnaceCoal extends PollingScript<ClientContext> implements PaintListener{
@@ -102,11 +104,11 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 	final static Area FOREMAN_AREA = new Area(new Tile(1944, 4958), new Tile(1946, 4960));
 	final static int FOREMAN_ID = 2923;
 	
-	final static Area BANK_AREA = new Area(new Tile(1947, 4955), new Tile(1948, 4957));
+	public final static Area BANK_AREA = new Area(new Tile(1947, 4955), new Tile(1948, 4957));
 	
-	final static Point[] BLAST_MOUSE_MOVE_AREA = {new Point(7, 134), new Point(79, 218)};
-	final static Point[] DISPENSER_MOUSE_MOVE_AREA = {new Point(194, 64), new Point(395, 264)};
-	final static Point[] BANK_MOUSE_MOVE_AREA = {new Point(292, 29), new Point(301, 81)};
+	public final static Point[] BLAST_MOUSE_MOVE_AREA = {new Point(7, 134), new Point(79, 218)};
+	public final static Point[] DISPENSER_MOUSE_MOVE_AREA = {new Point(194, 64), new Point(395, 264)};
+	public final static Point[] BANK_MOUSE_MOVE_AREA = {new Point(292, 29), new Point(301, 81)};
 	
 	State state = State.WALK_TO_BANK;
 	CarryMode carryMode = BAR.coalRatio > 1 ? CarryMode.COAL : CarryMode.ORE;
@@ -118,7 +120,9 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 	Bank bank;
 	Callables callables;
 	
-	final boolean needCoffer() {
+	StateMachine mch = new StateMachine();
+	
+	final boolean needForeman() {
 		return ctx.skills.level(Constants.SKILLS_SMITHING) < 60;
 	}
 	
@@ -155,6 +159,8 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 	final boolean walkToBank() {
 		Tile bankPos = BANK_AREA.getRandomTile();
 
+		TileInteraction interaction = new TileInteraction(bankPos, ctx);
+		
 		if (bankPos.distanceTo(ctx.players.local().tile()) > 5) {
 			ctx.movement.step(bankPos);
 			hoverBankArea();
@@ -255,6 +261,7 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 						return ctx.bank.select().id(COAL_ID).peek().hover();
 					}
 				});
+				
 				ctx.bank.depositAllExcept(COAL_BAG_ID);
 				
 				if (finished()) {

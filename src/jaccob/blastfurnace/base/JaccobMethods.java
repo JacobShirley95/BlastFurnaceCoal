@@ -27,7 +27,21 @@ public class JaccobMethods {
 		return wait(50, 100, callables);
 	}
 	
-	public int tryUntil(int tries, Callable<Boolean>... callables) {
+	public final boolean waitTillReasonableStop(final int dist) {
+		Condition.sleep(500);
+		return Condition.wait(new Callable<Boolean>() {
+			@Override
+			public Boolean call() throws Exception {
+				return distanceToDest() < dist;
+			}
+		}, 100, 60);
+	}
+	
+	public final int distanceToDest() {
+		return ctx.movement.distance(ctx.movement.destination());
+	}
+	
+	public final int tryUntil(int tries, Callable<Boolean>... callables) {
 		try {
 			for (int t = 0; t < tries; t++) {
 				int i = 0;

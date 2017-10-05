@@ -39,6 +39,36 @@ public class Bank extends ClientAccessor{
 		return false;
 	}
 	
+	public final boolean cleverBankOpen(Callable<Boolean> afterClick) {
+		for (int tries = 0; tries < 5; tries++) {
+			boolean opened = ctx.bank.opened();
+			if (!opened) {
+				if (ctx.bank.nearest().tile().matrix(ctx).interact("Use")) {
+					try {
+						if (afterClick.call()) {
+							if (Condition.wait(new Callable<Boolean>() {
+								@Override
+								public Boolean call() throws Exception {
+									return ctx.bank.opened();
+								}
+							}, 50, 30))
+								continue;
+						}
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}
+			}
+			
+			if (ctx.bank.opened()) {
+				
+				return true;
+			}	
+		}
+		
+		return false;
+	}
+	
 	public boolean bankSelect(final Item item, final Amount amount) {
 		return bankSelectWithdraw(item, amount.getValue());
 	}
@@ -97,7 +127,7 @@ public class Bank extends ClientAccessor{
 		return true;
 	}
 	
-	final boolean waitInvChanged(int start) {
+	public final boolean waitInvChanged(int start) {
 		return Condition.wait(new Callable<Boolean>() {
 			@Override
 			public Boolean call() {
@@ -106,18 +136,18 @@ public class Bank extends ClientAccessor{
 		}, 50, 20);
 	}
 	
-	final boolean bankSelectSmart(int id, int amount) {
+	public final boolean bankSelectSmart(int id, int amount) {
 		if (ctx.inventory.select().count() != 28) {
 			return bankSelectWithdraw(ctx.bank.select().id(id).poll(), amount);
 		}
 		return false;
 	}
 	
-	final boolean withdrawSmart(int id, Amount amount, Callable<Boolean> action) {
+	public final boolean withdrawSmart(int id, Amount amount, Callable<Boolean> action) {
 		return withdrawSmart(id, amount.getValue(), action);
 	}
 	
-	final boolean withdrawSmart(int id, int amount, Callable<Boolean> action) {
+	public final boolean withdrawSmart(int id, int amount, Callable<Boolean> action) {
 		final int cache = ctx.inventory.select().count(true);
 		if (bankSelectWithdraw(ctx.bank.select().id(id).poll(), amount)) {
 			try {
@@ -130,7 +160,7 @@ public class Bank extends ClientAccessor{
 		return false;
 	}
 	
-	final boolean waitBankOpen() {
+	public final boolean waitBankOpen() {
 		return Condition.wait(new Callable<Boolean>() {
 			@Override
 			public Boolean call() throws Exception {
@@ -139,7 +169,7 @@ public class Bank extends ClientAccessor{
 		}, 100, 20);
 	}
 	
-	final boolean depositSmart(int id, int amount, Callable<Boolean> action) {
+	public final boolean depositSmart(int id, int amount, Callable<Boolean> action) {
 		final int cache = ctx.inventory.select().count(true);
 		if (bankSelectDeposit(id, amount)) {
 			try {
