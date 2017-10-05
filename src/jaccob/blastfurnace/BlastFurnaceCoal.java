@@ -725,7 +725,6 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 			public Boolean call() throws Exception {
 				return dispenserScreenVis();
 			}
-				
 		}, 100, 30);
 	}
 	
@@ -790,7 +789,6 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 			for (int tries = 0; tries < 5; tries++) {
 				if (cleverBankOpen()) {
 					if (invMoney() == 0 && ctx.inventory.select().count() == 28) {
-						System.out.println("SDFDF");
 						if (carryMode == CarryMode.COAL) {
 							ctx.bank.deposit(COAL_ID, 1);
 						} else {
