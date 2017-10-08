@@ -3,9 +3,9 @@ package jaccob.blastfurnace.base;
 import org.powerbot.script.rt4.ClientAccessor;
 import org.powerbot.script.rt4.ClientContext;
 
-public class StateEntity extends ClientAccessor {
+public class StateData extends ClientAccessor {
 
-	public StateEntity(ClientContext ctx) {
+	public StateData(ClientContext ctx) {
 		super(ctx);
 	}
 	

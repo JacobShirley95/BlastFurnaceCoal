@@ -29,10 +29,4 @@ public class TileInteraction implements Interaction {
 		return ctx.movement.step(tile);
 	}
 
-	@Override
-	public boolean complete() {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
 }

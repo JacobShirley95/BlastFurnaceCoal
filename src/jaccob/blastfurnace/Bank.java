@@ -9,6 +9,9 @@ import org.powerbot.script.rt4.ClientAccessor;
 import org.powerbot.script.rt4.ClientContext;
 import org.powerbot.script.rt4.Constants;
 import org.powerbot.script.rt4.Item;
+
+import jaccob.blastfurnace.base.Interaction;
+
 import org.powerbot.script.rt4.Bank.Amount;
 
 public class Bank extends ClientAccessor{
@@ -39,21 +42,22 @@ public class Bank extends ClientAccessor{
 		return false;
 	}
 	
-	public final boolean cleverBankOpen(Callable<Boolean> afterClick) {
+	public final boolean cleverBankOpen(Interaction interaction) {
 		for (int tries = 0; tries < 5; tries++) {
 			boolean opened = ctx.bank.opened();
 			if (!opened) {
 				if (ctx.bank.nearest().tile().matrix(ctx).interact("Use")) {
 					try {
-						if (afterClick.call()) {
-							if (Condition.wait(new Callable<Boolean>() {
-								@Override
-								public Boolean call() throws Exception {
-									return ctx.bank.opened();
-								}
-							}, 50, 30))
-								continue;
-						}
+						if (interaction != null)
+							interaction.prepare();
+						
+						if (Condition.wait(new Callable<Boolean>() {
+							@Override
+							public Boolean call() throws Exception {
+								return ctx.bank.opened();
+							}
+						}, 50, 30))
+							continue;
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -143,15 +147,20 @@ public class Bank extends ClientAccessor{
 		return false;
 	}
 	
-	public final boolean withdrawSmart(int id, Amount amount, Callable<Boolean> action) {
-		return withdrawSmart(id, amount.getValue(), action);
+	public final boolean withdrawSmart(int id, Amount amount, Interaction interaction) {
+		return withdrawSmart(id, amount.getValue(), interaction);
 	}
 	
-	public final boolean withdrawSmart(int id, int amount, Callable<Boolean> action) {
+	public final boolean withdrawSmart(int id, int amount, Interaction interaction) {
 		final int cache = ctx.inventory.select().count(true);
+		
+		if (ctx.inventory.count() == 28)
+			return true;
+		
 		if (bankSelectWithdraw(ctx.bank.select().id(id).poll(), amount)) {
 			try {
-				if (action.call() && waitInvChanged(cache))
+				interaction.prepare();
+				if (waitInvChanged(cache))
 					return true;
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -169,15 +178,15 @@ public class Bank extends ClientAccessor{
 		}, 100, 20);
 	}
 	
-	public final boolean depositSmart(int id, int amount, Callable<Boolean> action) {
-		final int cache = ctx.inventory.select().count(true);
+	public final boolean depositSmart(int id, int amount, Interaction interaction) {
+		final int cache = ctx.inventory.select().id(id).count(true);
+		if (cache == 0)
+			return true;
+		
 		if (bankSelectDeposit(id, amount)) {
-			try {
-				if (action.call() && waitInvChanged(cache))
-					return true;
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+			interaction.prepare();
+			if (waitInvChanged(cache))
+				return true;
 		}
 		return false;
 	}

@@ -4,17 +4,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class StateMachine {
-	public State current;
-	public Map<Integer, State> states = new HashMap<>();
-	public Map<Integer, Integer> nextStates = new HashMap<>();
-	
+	public Statee current;
+
 	public StateMachine() {
 		
 	}
 	
-	public void registerState(State state, int nextState) {
-		states.put(state.id(), state);
-		nextStates.put((Integer)state.id(), nextState);
+	/*public void registerState(State state, int nextState) {
 	}
 	
 	public void setState(State state) {
@@ -25,8 +21,8 @@ public class StateMachine {
 		current = states.get(state);
 	}
 	
-	public void next(StateEntity entity) {
+	public void next(StateData entity) {
 		current = states.get(nextStates.get(current.id()));
 		current.run(entity);
-	}
+	}*/
 }
