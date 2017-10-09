@@ -12,6 +12,7 @@ import org.powerbot.script.rt4.Widget;
 import jaccob.blastfurnace.BlastFurnaceCoal;
 import jaccob.blastfurnace.Defs;
 import jaccob.blastfurnace.ScriptData;
+import jaccob.blastfurnace.base.ObjectInteraction;
 import jaccob.blastfurnace.base.RandomMouseInteraction;
 import jaccob.blastfurnace.base.Statee;
 import jaccob.blastfurnace.base.TileInteraction;
@@ -27,8 +28,7 @@ public class HandleDispenser extends Statee<ScriptData>{
 		Component comp = widg.component(data.bar.dispenserId);
 		
 		for (int tries = 0; tries < 5; tries++) {
-			if (comp.interact("Take")) {
-				Condition.sleep(200);
+			if (comp.click()) {
 				return true;
 			}
 		}
@@ -54,6 +54,17 @@ public class HandleDispenser extends Statee<ScriptData>{
 		return false;
 	}
 	
+	final boolean waitMoving(ClientContext ctx) {
+		return Condition.wait(new Callable<Boolean>() {
+
+			@Override
+			public Boolean call() throws Exception {
+				return ctx.players.local().inMotion() || dispenserScreenVis(ctx);
+			}
+			
+		}, 50, 15);
+	}
+	
 	@Override
 	public Statee<ScriptData> update(ScriptData data) {
 		ClientContext ctx = data.ctx;
@@ -63,36 +74,44 @@ public class HandleDispenser extends Statee<ScriptData>{
 		
 		if (!dispenser.inViewport()) {
 			ctx.movement.step(pos);
+			data.methods.waitTillReasonableStop(1, new ObjectInteraction(dispenser));
 		}
 		
 		if (dispenserScreenVis(ctx))
 			ctx.widgets.close(ctx.widgets.widget(Defs.DISPENSER_SEL_ID));
+		
+		for (int tries = 0; tries < 5; tries++) {
+			if (tries == 3 && dispenserScreenVis(ctx)) {
+				ctx.widgets.close(ctx.widgets.widget(Defs.DISPENSER_SEL_ID));
+				Condition.wait(new Callable<Boolean>() {
 
-		if (data.methods.waitTillReasonableStop(1, null)) {
+					@Override
+					public Boolean call() throws Exception {
+						return data.getDispenser(true).valid();
+					}
+					
+				}, 200, 30);
+			}
+			
 			if (!dispenserScreenVis(ctx))
 				if (!clickDispenser(dispenser))
 					return new HandleDispenser();
 			
-			new RandomMouseInteraction(ctx, 
-									   Defs.DISPENSER_MOUSE_MOVE_AREA[0], 
-									   Defs.DISPENSER_MOUSE_MOVE_AREA[1]).prepare();
-			if (waitForDispenser(ctx)) {
-				if (!selectAll(data)) {
-					return new HandleDispenser();
-				} else {
-					new TileInteraction(BlastFurnaceCoal.BANK_AREA.getRandomTile(), ctx).prepare();
+			if (waitMoving(ctx)) {
+				new RandomMouseInteraction(ctx, 
+										   Defs.DISPENSER_MOUSE_MOVE_AREA[0], 
+										   Defs.DISPENSER_MOUSE_MOVE_AREA[1]).prepare();
+				if (waitForDispenser(ctx)) {
+					if (selectAll(data))
+						new TileInteraction(Defs.BANK_AREA.getRandomTile(), ctx).prepare();
 					
-					if (!ctx.inventory.select().id(data.bar.barId).isEmpty()) {
+					if (ctx.inventory.select().id(data.bar.barId).count() == 27)
 						return new Banking();
-					}
 				}
 			}
 		}
 		
-		if (data.getChatBoxText().contains("Smithing"))
-			ctx.chat.clickContinue();
-		
-		return new HandleDispenser();
+		return new Banking();
 	}
 
 }

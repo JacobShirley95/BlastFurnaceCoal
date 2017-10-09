@@ -7,5 +7,9 @@ public abstract class Statee<T extends StateData> {
 	public Statee() {
 	}
 	
+	public boolean start() {
+		return false;
+	}
+	
 	public abstract Statee<T> update(T data);
 }

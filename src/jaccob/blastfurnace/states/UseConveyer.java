@@ -1,5 +1,6 @@
 package jaccob.blastfurnace.states;
 
+import java.awt.Point;
 import java.util.concurrent.Callable;
 
 import org.powerbot.script.Condition;
@@ -11,6 +12,8 @@ import org.powerbot.script.rt4.Widget;
 import jaccob.blastfurnace.BlastFurnaceCoal;
 import jaccob.blastfurnace.Defs;
 import jaccob.blastfurnace.ScriptData;
+import jaccob.blastfurnace.Defs.CarryMode;
+import jaccob.blastfurnace.base.ObjectInteraction;
 import jaccob.blastfurnace.base.RandomMouseInteraction;
 import jaccob.blastfurnace.base.Statee;
 import jaccob.blastfurnace.base.TileInteraction;
@@ -19,6 +22,8 @@ public class UseConveyer extends Statee<ScriptData>{
 	
 	final Statee<ScriptData> conveyAndCheck(ScriptData data, int id) {
 		int res = data.methods.wait(data.callables.itemGoneCb(id), data.callables.widgetVisible(Defs.NEED_TO_SMELT_FIRST_ID));
+		System.out.println("RESULT: " + res);
+		
 		if (res == 1) {
 			String txt = data.getChatBoxText();
 			System.out.println(txt);
@@ -28,14 +33,15 @@ public class UseConveyer extends Statee<ScriptData>{
 				data.foremanPaid = false;
 				nextState = new HandleForeman();
 				System.out.println("done foreman");
-			} else {
+			} else if (txt.contains("collect")){
 				nextState = new ClearDispenser();
+			} else if (txt.contains("smelts")) {
+				nextState = new ClearDispenser();
+				data.carryMode = CarryMode.ORE;
 			}
 			return nextState;
 			//return true;
 		}
-		
-		System.out.println("RESULT: " + res);
 	
 		return null;
 	}
@@ -65,6 +71,19 @@ public class UseConveyer extends Statee<ScriptData>{
 		ClientContext ctx = data.ctx;
 		GameObject conveyer = data.getConveyer();
 		
+
+		long timer = System.currentTimeMillis() + 9000;
+		while (data.methods.distanceToDest() > 3 && System.currentTimeMillis() < timer) {
+			if (conveyer.inViewport()) {
+				Point p = conveyer.centerPoint();
+				p.translate(0, 20);
+				ctx.input.move(p);
+				//ctx.input.click(true);
+				
+				break;
+			}
+		}
+		
 		if (!conveyer.inViewport())
 			return new ConveyerWalk();
 		
@@ -84,30 +103,65 @@ public class UseConveyer extends Statee<ScriptData>{
 				data.gotCoal = false;
 		}
 		
-		if (conveyer.interact("Put-ore-on")) {
-			if (first)
-				ctx.inventory.select().id(Defs.COAL_BAG_ID).peek().hover();
-			else {
-				if (data.carryMode == Defs.CarryMode.COAL) {
-					new TileInteraction(BlastFurnaceCoal.BANK_AREA.getRandomTile(), ctx).prepare();
+		for (int tries = 0; tries < 5; tries++) {
+			if (conveyer.interact(true, "Put-ore-on")) {
+				if (first) {
+					Condition.wait(new Callable<Boolean>() {
+						@Override
+						public Boolean call() throws Exception {
+							Tile dest = ctx.movement.destination();
+							return dest.x() != -1;
+						}
+					}, 20, 10);
+					
+					if (!Condition.wait(new Callable<Boolean>() {
+						@Override
+						public Boolean call() throws Exception {
+							Tile dest = ctx.movement.destination();
+							
+							if (dest.equals(new Tile(1943, 4967, 0))
+							 || dest.equals(new Tile(1942, 4967, 0))) {
+								return true;
+							}
+							
+							System.out.println("fail");
+							
+							return false;
+						}
+					}, 20, 10))
+						continue;
+					
+					ctx.inventory.select().id(Defs.COAL_BAG_ID).peek().hover();
 				} else {
-					data.getDispenser(false).hover();
+					if (data.carryMode == Defs.CarryMode.COAL) {
+						new TileInteraction(Defs.BANK_AREA.getRandomTile(), ctx).prepare();
+					} else {
+						data.getDispenser(false).hover();
+					}
+					
 				}
 				
-			}
-			
-			Statee<ScriptData> s = conveyAndCheck(data, first ? targetId : Defs.COAL_ID);
-			
-			if (s != null)
-				return s;
-			
-			if (first || ctx.inventory.select().count() > 1)
-				return new UseConveyer();
-			
-			if (data.carryMode == Defs.CarryMode.COAL) {
-				return new Banking();
-			} else {
-				return new HandleDispenser();
+				Statee<ScriptData> s = conveyAndCheck(data, first ? targetId : Defs.COAL_ID);
+				
+				if (s != null)
+					return s;
+				
+				if (first || ctx.inventory.select().count() > 1)
+					return new UseConveyer();
+				
+				if (data.carryMode == Defs.CarryMode.COAL) {
+					data.carryMode = Defs.CarryMode.ORE;
+					return new Banking();
+				} else {
+					data.oreTrip++;
+					
+					if (data.bar.oreTrips > 1 && data.oreTrip == data.bar.oreTrips) {
+						data.carryMode = CarryMode.COAL;
+						data.oreTrip = 0;
+					}
+					
+					return new HandleDispenser();
+				}
 			}
 		}
 		

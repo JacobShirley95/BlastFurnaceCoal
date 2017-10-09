@@ -10,9 +10,11 @@ import java.util.Stack;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
+import org.powerbot.bot.rt6.client.Skill;
 import org.powerbot.script.Area;
 import org.powerbot.script.Condition;
 import org.powerbot.script.Filter;
+import org.powerbot.script.Input;
 import org.powerbot.script.MenuCommand;
 import org.powerbot.script.PaintListener;
 import org.powerbot.script.PollingScript;
@@ -31,7 +33,8 @@ import org.powerbot.script.rt4.Npc;
 import org.powerbot.script.rt4.TextQuery;
 import org.powerbot.script.rt4.Widget;
 
-import jaccob.blastfurnace.BlastFurnaceCoal.CarryMode;
+import jaccob.blastfurnace.Defs.BarType;
+import jaccob.blastfurnace.Defs.CarryMode;
 import jaccob.blastfurnace.base.Callables;
 import jaccob.blastfurnace.base.StateMachine;
 import jaccob.blastfurnace.base.TileInteraction;
@@ -42,112 +45,13 @@ import jaccob.blastfurnace.states.OpenBank;
 
 @Manifest(name="BlastFurnaceCoal", description="description", properties="")
 public class BlastFurnaceCoal extends PollingScript<ClientContext> implements PaintListener{
-	final static int COAL_ID = 453;
-	final static int COAL_BAG_ID = 12019;
-	
-	final static int GOLD_ID = 995;
-	
-	enum CarryMode {
-		COAL, ORE
-	}
-
-	enum BarType {
-		STEEL(2353, 440, true, 110, 1),
-		MITHRIL(2359, 447, true, 111, 2);
-		
-		public int barId;
-		public int oreId;
-		public boolean coal;
-		public int dispenserId;
-		public int coalRatio;
-		public int oreTrips;
-		
-		BarType(int barId, int oreId, boolean coal, int dispenserId, int coalRatio) {
-			this.barId = barId;
-			this.oreId = oreId;
-			this.coal = coal;
-			this.dispenserId = dispenserId;
-			this.coalRatio = coalRatio;
-			this.oreTrips = coalRatio;
-		}
-	}
-	
-	final static BarType BAR = BarType.STEEL;
-	
-	final static int COAL_BAG_FULL_ID = 193;
-	final static int NEED_TO_SMELT_FIRST_ID = 229;
-	
-	final static int[] COFFER_IDS = {29328, 29329};
-	final static int[] COFFER_BOUNDS = {-24, 36, 10, 0, -32, 28};
-	final static int MIN_COFFER_AMOUNT = 3000;
-	
-	final static Tile FURNACE_TILE = new Tile(1939, 4963);
-	
-	final static int BLAST_FURNACE_AMOUNT = 10000;
-	
-	final static Area BLAST_AREA = new Area(new Tile(1939, 4967), new Tile(1942, 4967));
-	final static int[] BLAST_YAWS = {261, 241};
-	final static int BLAST_CONVEYER_ID = 9100;
-	final static int[] BLAST_CONVEYER_BOUNDS = {-36, 20, -240, -228, -72, 32};
-			
-	final static int[] DISPENSER_IDS = {9093, 9094, 9095, 9096};
-	final static int[] DISPENSER_DONE_IDS = {9094, 9095, 9096};
-	final static int[] DISPENSER_BOUNDS = {-108, -44, -96, -36, -32, 32};
-	
-	final static int[] STAMINA_POTS = {12631, 12629, 12625, 12627};
-	
-	//Components
-	final static int DISPENSER_SEL_ID = 28;
-	
-	final static int CHAT_BOX_TEXT_ID = 229;
-	final static int CHAT_BOX_TEXT_COMP_ID = 0;
-	
-	final static Area FOREMAN_AREA = new Area(new Tile(1944, 4958), new Tile(1946, 4960));
-	final static int FOREMAN_ID = 2923;
-	
-	public final static Area BANK_AREA = new Area(new Tile(1947, 4955), new Tile(1948, 4957));
-	
-	public final static Point[] BLAST_MOUSE_MOVE_AREA = {new Point(7, 134), new Point(79, 218)};
-	public final static Point[] DISPENSER_MOUSE_MOVE_AREA = {new Point(194, 64), new Point(395, 264)};
-	public final static Point[] BANK_MOUSE_MOVE_AREA = {new Point(292, 29), new Point(301, 81)};
-	
-	CarryMode carryMode = BAR.coalRatio > 1 ? CarryMode.COAL : CarryMode.ORE;
-	
-	int barProfit = getBarProfit(BAR);
-	
-	Bank bank;
-	Callables callables;
+	int barProfit = 0;
 	
 	StateMachine mch = new StateMachine();
 	
 	final boolean needForeman() {
 		return ctx.skills.level(Constants.SKILLS_SMITHING) < 60;
 	}
-	
-	final static int getBarProfit(BarType type) {
-		int coalPrice = new GeItem(COAL_ID).price;
-		int orePrice = new GeItem(type.oreId).price;
-		int barPrice = new GeItem(type.barId).price;
-
-		return barPrice - ((coalPrice * type.coalRatio) + orePrice);
-	}
-	
-	int startXP = 0;
-	
-	final int getXPPerHour() {
-		long runTime = getRuntime();
-		if (startXP == 0)
-			startXP = ctx.skills.experience(Constants.SKILLS_SMITHING);
-		
-		return (int) (3600000d / (long) runTime * (double) (ctx.skills.experience(Constants.SKILLS_SMITHING) - startXP));
-	}
-	
-	final int getBarsPerHour() {
-		long runTime = getRuntime();
-
-		return (int) (3600000d / (long) runTime * (double) (data.barsMade));
-	}
-	
 	
 	final boolean run() {
 		if (ctx.movement.energyLevel() > 15)
@@ -158,12 +62,13 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 	
 	@Override
 	public void start() {
-		bank = new Bank(ctx);
-		callables = new Callables(ctx);
-		
 		ctx.camera.pitch(true);
 		data = new ScriptData(ctx);
 		data.bar = Defs.BAR;
+		data.carryMode = data.bar.coalRatio > 1 ? CarryMode.COAL : CarryMode.ORE;
+		
+		barProfit = getBarProfit(data.bar);
+		ctx.input.speed(71);
 		stateStack.push(start);
 	}
 	
@@ -175,9 +80,19 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 	@Override
 	public void poll() {
 		while (!ctx.controller.isStopping()) {
+			if (ctx.controller.isSuspended()) {
+				Thread.yield();
+				continue;
+			}
+			
 			run();
 			if (!stateStack.isEmpty()) {
 				Statee<ScriptData> st = stateStack.peek();
+				if (st.start()) {
+					stateStack.clear();
+					stateStack.push(st);
+				}
+				
 				Statee<ScriptData> next = st.update(data);
 				
 				System.out.println(st);
@@ -206,6 +121,30 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 	        return String.format("%02d:%02d:%02d", hr, min, sec );
 	    }
 	}
+	
+	final static int getBarProfit(BarType type) {
+		int coalPrice = new GeItem(Defs.COAL_ID).price;
+		int orePrice = new GeItem(type.oreId).price;
+		int barPrice = new GeItem(type.barId).price;
+
+		return barPrice - ((coalPrice * type.coalRatio) + orePrice);
+	}
+	
+	int startXP = 0;
+	
+	final int getXPPerHour() {
+		long runTime = getRuntime();
+		if (startXP == 0)
+			startXP = ctx.skills.experience(Constants.SKILLS_SMITHING);
+		
+		return (int) (3600000d / (long) runTime * (double) (ctx.skills.experience(Constants.SKILLS_SMITHING) - startXP));
+	}
+	
+	final int getBarsPerHour() {
+		long runTime = getRuntime();
+
+		return (int) (3600000d / (long) runTime * (double) (data.barsMade));
+	}
 
 	@Override
 	public void repaint(Graphics g) {
@@ -213,11 +152,12 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 		g2.setColor(Color.green);
 		
 		int barsPerHour = getBarsPerHour();
+		int xp = ctx.skills.experience(Constants.SKILLS_SMITHING) - startXP;
 		
 		g2.drawString("Time running: " + formatInterval(getRuntime(), false), 10, 30);
-		g2.drawString("Profit p/h: " + ((int)Math.round((barsPerHour * barProfit) / 1000)), 10, 60);
-		g2.drawString("Bars made: " + data.barsMade, 10, 90);
-		g2.drawString("Bars p/h: " + barsPerHour, 10, 120);
-		g2.drawString("XP p/h: " + getXPPerHour(), 10, 150);
+		g2.drawString("Profit: " + (data.barsMade * barProfit) + "gp (" + ((int)Math.round((barsPerHour * barProfit) / 1000)) + "k / Hr)", 10, 60);
+		g2.drawString("Bar profit: " + barProfit + "gp", 10, 90);
+		g2.drawString("Bars made: " + data.barsMade + " (" + barsPerHour +" / Hr)", 10, 120);
+		g2.drawString("XP: " + xp + " (" + getXPPerHour() + " / Hr)", 10, 150);
 	}
 }

@@ -42,6 +42,35 @@ public class Bank extends ClientAccessor{
 		return false;
 	}
 	
+	public boolean depositAllExcept(final int... ids) {
+		return depositAllExcept(new Filter<Item>() {
+			@Override
+			public boolean accept(final Item item) {
+				final int id = item.id();
+				for (final int i : ids) {
+					if (id == i) {
+						return true;
+					}
+				}
+				return false;
+			}
+		});
+	}
+	
+	public boolean depositAllExcept(final Filter<Item> filter) {
+		if (ctx.inventory.select().select(filter).count() == 0) {
+			return ctx.bank.depositInventory();
+		}
+		for (final Item i : ctx.inventory.select().shuffle()) {
+			if (filter.accept(i)) {
+				continue;
+			}
+			depositSmart(i.id(), Amount.ALL.getValue(), null);
+		}
+
+		return ctx.inventory.select().count() == ctx.inventory.select(filter).count();
+	}
+	
 	public final boolean cleverBankOpen(Interaction interaction) {
 		for (int tries = 0; tries < 5; tries++) {
 			boolean opened = ctx.bank.opened();
@@ -184,7 +213,8 @@ public class Bank extends ClientAccessor{
 			return true;
 		
 		if (bankSelectDeposit(id, amount)) {
-			interaction.prepare();
+			if (interaction != null)
+				interaction.prepare();
 			if (waitInvChanged(cache))
 				return true;
 		}

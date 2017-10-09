@@ -44,7 +44,7 @@ public class Banking extends Statee<ScriptData> {
 			if (ctx.inventory.select().id(Defs.COAL_BAG_ID).peek().interact("Fill")) {
 				ctx.bank.nearest().tile().matrix(ctx).hover();
 				
-				return data.methods.wait(data.callables.itemGoneCb(Defs.COAL_ID), 
+				return data.methods.wait(100, 12, data.callables.itemGoneCb(Defs.COAL_ID), 
 										 data.callables.widgetVisible(Defs.COAL_BAG_FULL_ID));
 			}
 		}
@@ -61,21 +61,25 @@ public class Banking extends Statee<ScriptData> {
 		}
 		
 		for (int tries = 0; tries < 5; tries++) {
-			if (ctx.bank.close()) {
-				int result = fillCoalBag(data);
-				
-				if (result == 0) {
-					data.gotCoal = true;
-					ctx.bank.open();
-					return true;
-				} else if (result == 1) {
-					data.gotCoal = true;
-					return true;
-				}
+			ctx.bank.close();
+			int result = fillCoalBag(data);
+			
+			if (result == 0) {
+				data.gotCoal = true;
+				ctx.bank.open();
+				return true;
+			} else if (result == 1) {
+				data.gotCoal = true;
+				return true;
 			}
 		}
 		
 		return false;
+	}
+	
+	@Override
+	public boolean start() {
+		return true;
 	}
 
 	@Override
@@ -88,9 +92,8 @@ public class Banking extends Statee<ScriptData> {
 		WidgetInteraction hoverClose = new WidgetInteraction(bankCloseComponent(ctx));
 		
 		data.barsMade += ctx.inventory.select().id(data.bar.barId).count();
-		System.out.println("sdfdsf");
 		if (data.bank.depositSmart(data.bar.barId, Amount.ALL.getValue(), new ItemInteraction(ctx, Defs.COAL_ID, true))) {
-			ctx.bank.depositAllExcept(Defs.COAL_BAG_ID);
+			data.bank.depositAllExcept(Defs.COAL_BAG_ID);
 			
 			if (finished(data)) {
 				ctx.controller.stop();
@@ -104,9 +107,8 @@ public class Banking extends Statee<ScriptData> {
 			if (ctx.inventory.select().id(Defs.COAL_BAG_ID).isEmpty())
 				ctx.bank.withdraw(Defs.COAL_BAG_ID, 1);
 			
-			if (!data.gotCoal && coalFromBank(data)) {
-				System.out.println("SDFSDF");
-			}
+			if (!data.gotCoal)
+				coalFromBank(data);
 			
 			if (data.carryMode == CarryMode.COAL && ctx.inventory.select().id(Defs.COAL_ID).count() == 27)
 				return new UseConveyer();
@@ -122,12 +124,12 @@ public class Banking extends Statee<ScriptData> {
 				}
 				
 				for (int staminaPot : Defs.STAMINA_POTS) {
-					if (ctx.bank.withdraw(staminaPot, 1)) {
+					if (data.bank.withdrawSmart(staminaPot, 1, hoverClose)) {
 						ctx.bank.close();
 						
 						ctx.inventory.select().id(staminaPot).peek().interact("Drink");
-						if (ctx.bank.open())
-							ctx.bank.depositAllExcept(Defs.COAL_BAG_ID, Defs.GOLD_ID, Defs.COAL_ID, data.bar.oreId);
+						if (data.bank.cleverBankOpen(null))
+							data.bank.depositAllExcept(Defs.COAL_BAG_ID, Defs.GOLD_ID, Defs.COAL_ID, data.bar.oreId);
 						
 						break;
 					}
@@ -139,7 +141,7 @@ public class Banking extends Statee<ScriptData> {
 			}
 		}
 
-		return null;
+		return new Banking();
 	}
 
 }

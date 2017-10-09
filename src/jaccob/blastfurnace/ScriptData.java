@@ -15,7 +15,8 @@ public class ScriptData extends StateData{
 	public Bank bank;
 	public boolean gotCoal;
 	public int barsMade;
-	public CarryMode carryMode;
+	public int oreTrip = 0;
+	public CarryMode carryMode = CarryMode.COAL;
 	public BarType bar;
 	public boolean foremanPaid;
 	

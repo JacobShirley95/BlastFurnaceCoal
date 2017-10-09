@@ -49,7 +49,7 @@ public class Defs {
 	
 	public final static Tile FURNACE_TILE = new Tile(1939, 4963);
 	
-	public final static int BLAST_FURNACE_AMOUNT = 10000;
+	public final static int BLAST_FURNACE_AMOUNT = 60000;
 	
 	public final static Area BLAST_AREA = new Area(new Tile(1939, 4967), new Tile(1942, 4967));
 	public final static int[] BLAST_YAWS = {261, 241};
@@ -68,7 +68,9 @@ public class Defs {
 	public final static Area FOREMAN_AREA = new Area(new Tile(1944, 4958), new Tile(1946, 4960));
 	public final static int FOREMAN_ID = 2923;
 	
-	public final static Point[] BLAST_MOUSE_MOVE_AREA = {new Point(7, 134), new Point(79, 218)};
+	public final static Point[] BLAST_MOUSE_MOVE_AREA = {new Point(7, 134), new Point(59, 218)};
 	public final static Point[] DISPENSER_MOUSE_MOVE_AREA = {new Point(194, 64), new Point(395, 264)};
-	public final static Point[] BANK_MOUSE_MOVE_AREA = {new Point(292, 29), new Point(301, 81)};
+	public final static Point[] BANK_MOUSE_MOVE_AREA = {new Point(302, 29), new Point(331, 81)};
+	
+	public final static Area BANK_AREA = new Area(new Tile(1947, 4955), new Tile(1948, 4957));
 }

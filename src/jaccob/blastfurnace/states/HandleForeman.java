@@ -26,25 +26,35 @@ public class HandleForeman extends Statee<ScriptData> {
 		ctx.bank.close();
 		
 		Npc foreman = ctx.npcs.select().id(Defs.FOREMAN_ID).peek();
-		if (!foreman.inViewport())
-			ctx.movement.step(Defs.FOREMAN_AREA.getRandomTile());
 		
-		int money = data.methods.invMoney();
-		if (data.methods.waitTillReasonableStop(1, null) && foreman.interact("Pay")) {
-			if (Condition.wait(new Callable<Boolean>() {
-				@Override
-				public Boolean call() throws Exception {
-					return data.methods.invMoney() < money;
-				}
-			}, 50, 20)) {
-				data.foremanPaid = true;
-				return new DepositMoney();
-			}
+		for (int tries = 0; tries < 5; tries++) {
+			if (!foreman.inViewport())
+				ctx.movement.step(Defs.FOREMAN_AREA.getRandomTile());
 			
-			ctx.chat.select().text("Yes").peek().select();
+			int money = data.methods.invMoney();
+			if (data.methods.waitTillReasonableStop(1, null) && foreman.interact("Pay")) {
+				if (Condition.wait(new Callable<Boolean>() {
+					@Override
+					public Boolean call() throws Exception {
+						return data.methods.invMoney() < money;
+					}
+				}, 50, 20)) {
+					data.foremanPaid = true;
+					break;
+				}
+				
+				if (Condition.wait(new Callable<Boolean>() {
+					@Override
+					public Boolean call() throws Exception {
+						return ctx.chat.select().text("Yes").peek().select();
+					}
+				}, 500, 10)) {
+					data.foremanPaid = true;
+					break;
+				}
+			}
 		}
 		
-		data.foremanPaid = true;
 		return new DepositMoney();
 	}
 

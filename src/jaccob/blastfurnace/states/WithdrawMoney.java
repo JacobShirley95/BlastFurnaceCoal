@@ -31,8 +31,8 @@ public class WithdrawMoney extends Statee<ScriptData>{
 
 			@Override
 			public boolean execute() {
-				if (!ctx.bank.deposit(data.bar.oreId, 1))
-					return ctx.bank.deposit(Defs.COAL_ID, 1);
+				data.bank.depositSmart(data.bar.oreId, 1, null);
+				data.bank.depositSmart(Defs.COAL_ID, 1, null);
 				
 				return true;
 			}

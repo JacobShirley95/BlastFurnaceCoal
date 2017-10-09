@@ -26,7 +26,8 @@ public class DepositMoney extends Statee<ScriptData>{
 			
 			@Override
 			public boolean execute() {
-				return ctx.bank.withdraw(ctx.inventory.select().reverse().peek(), 1);
+				int targetId = ctx.inventory.select().id(Defs.COAL_ID).isEmpty() ? data.bar.oreId : Defs.COAL_ID;
+				return ctx.bank.withdraw(targetId, 1);
 			}
 		};
 		
@@ -34,7 +35,7 @@ public class DepositMoney extends Statee<ScriptData>{
 			return new OpenBank(new ItemInteraction(ctx, Defs.GOLD_ID, false));
 		
 		if (data.bank.depositSmart(Defs.GOLD_ID, Amount.ALL.getValue(), withdrawI)) {
-			//withdrawI.execute();
+			withdrawI.execute();
 		}
 		
 		return null;

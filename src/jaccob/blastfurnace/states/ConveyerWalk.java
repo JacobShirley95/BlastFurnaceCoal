@@ -22,8 +22,6 @@ public class ConveyerWalk extends Statee<ScriptData>{
 		
 		ctx.camera.angle(data.methods.getRandomAngle(Defs.BLAST_YAWS));
 		
-		data.methods.waitTillReasonableStop(9, new ObjectInteraction(data.getConveyer()));
-		
 		return null;
 	}
 
