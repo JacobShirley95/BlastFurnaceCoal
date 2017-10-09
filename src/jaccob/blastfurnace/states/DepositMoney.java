@@ -8,14 +8,14 @@ import jaccob.blastfurnace.Defs;
 import jaccob.blastfurnace.ScriptData;
 import jaccob.blastfurnace.base.Interaction;
 import jaccob.blastfurnace.base.ItemInteraction;
-import jaccob.blastfurnace.base.Statee;
+import jaccob.blastfurnace.base.State;
 
-public class DepositMoney extends Statee<ScriptData>{
+public class DepositMoney extends State<ScriptData>{
 	public DepositMoney() {
 	}
 	
 	@Override
-	public Statee<ScriptData> update(ScriptData data) {
+	public State<ScriptData> update(ScriptData data) {
 		ClientContext ctx = data.ctx; 
 		Interaction withdrawI = new Interaction() {
 			

@@ -15,19 +15,19 @@ import jaccob.blastfurnace.ScriptData;
 import jaccob.blastfurnace.Defs.CarryMode;
 import jaccob.blastfurnace.base.ObjectInteraction;
 import jaccob.blastfurnace.base.RandomMouseInteraction;
-import jaccob.blastfurnace.base.Statee;
+import jaccob.blastfurnace.base.State;
 import jaccob.blastfurnace.base.TileInteraction;
 
-public class UseConveyer extends Statee<ScriptData>{
+public class UseConveyer extends State<ScriptData>{
 	
-	final Statee<ScriptData> conveyAndCheck(ScriptData data, int id) {
+	final State<ScriptData> conveyAndCheck(ScriptData data, int id) {
 		int res = data.methods.wait(data.callables.itemGoneCb(id), data.callables.widgetVisible(Defs.NEED_TO_SMELT_FIRST_ID));
 		System.out.println("RESULT: " + res);
 		
 		if (res == 1) {
 			String txt = data.getChatBoxText();
 			System.out.println(txt);
-			Statee<ScriptData> nextState = null;
+			State<ScriptData> nextState = null;
 			
 			if (txt.contains("permission")) {
 				data.foremanPaid = false;
@@ -67,7 +67,7 @@ public class UseConveyer extends Statee<ScriptData>{
 	}
 	
 	@Override
-	public Statee<ScriptData> update(ScriptData data) {
+	public State<ScriptData> update(ScriptData data) {
 		ClientContext ctx = data.ctx;
 		GameObject conveyer = data.getConveyer();
 		
@@ -141,7 +141,7 @@ public class UseConveyer extends Statee<ScriptData>{
 					
 				}
 				
-				Statee<ScriptData> s = conveyAndCheck(data, first ? targetId : Defs.COAL_ID);
+				State<ScriptData> s = conveyAndCheck(data, first ? targetId : Defs.COAL_ID);
 				
 				if (s != null)
 					return s;
@@ -155,7 +155,7 @@ public class UseConveyer extends Statee<ScriptData>{
 				} else {
 					data.oreTrip++;
 					
-					if (data.bar.oreTrips > 1 && data.oreTrip == data.bar.oreTrips) {
+					if (data.bar.oreTrips > 0 && data.oreTrip == data.bar.oreTrips) {
 						data.carryMode = CarryMode.COAL;
 						data.oreTrip = 0;
 					}

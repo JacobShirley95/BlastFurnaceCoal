@@ -14,10 +14,10 @@ import jaccob.blastfurnace.Defs;
 import jaccob.blastfurnace.ScriptData;
 import jaccob.blastfurnace.base.ObjectInteraction;
 import jaccob.blastfurnace.base.RandomMouseInteraction;
-import jaccob.blastfurnace.base.Statee;
+import jaccob.blastfurnace.base.State;
 import jaccob.blastfurnace.base.TileInteraction;
 
-public class HandleDispenser extends Statee<ScriptData>{
+public class HandleDispenser extends State<ScriptData>{
 	
 	final boolean dispenserScreenVis(ClientContext ctx) {
 		return ctx.widgets.widget(Defs.DISPENSER_SEL_ID).valid();
@@ -66,7 +66,7 @@ public class HandleDispenser extends Statee<ScriptData>{
 	}
 	
 	@Override
-	public Statee<ScriptData> update(ScriptData data) {
+	public State<ScriptData> update(ScriptData data) {
 		ClientContext ctx = data.ctx;
 		
 		GameObject dispenser = data.getDispenser(false);

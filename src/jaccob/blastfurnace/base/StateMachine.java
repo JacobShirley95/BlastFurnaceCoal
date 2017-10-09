@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class StateMachine {
-	public Statee current;
+	public State current;
 
 	public StateMachine() {
 		

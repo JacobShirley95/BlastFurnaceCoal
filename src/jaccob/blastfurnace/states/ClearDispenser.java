@@ -9,12 +9,12 @@ import org.powerbot.script.rt4.Npc;
 
 import jaccob.blastfurnace.Defs;
 import jaccob.blastfurnace.ScriptData;
-import jaccob.blastfurnace.base.Statee;
+import jaccob.blastfurnace.base.State;
 
-public class ClearDispenser extends Statee<ScriptData> {
+public class ClearDispenser extends State<ScriptData> {
 	
 	@Override
-	public Statee<ScriptData> update(ScriptData data) {
+	public State<ScriptData> update(ScriptData data) {
 		ClientContext ctx = data.ctx;
 		
 		if (!ctx.bank.opened())

@@ -38,7 +38,7 @@ import jaccob.blastfurnace.Defs.CarryMode;
 import jaccob.blastfurnace.base.Callables;
 import jaccob.blastfurnace.base.StateMachine;
 import jaccob.blastfurnace.base.TileInteraction;
-import jaccob.blastfurnace.base.Statee;
+import jaccob.blastfurnace.base.State;
 import jaccob.blastfurnace.states.BankWalk;
 import jaccob.blastfurnace.states.Banking;
 import jaccob.blastfurnace.states.OpenBank;
@@ -63,6 +63,8 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 	@Override
 	public void start() {
 		ctx.camera.pitch(true);
+		ctx.camera.angle(data.methods.getRandomAngle(Defs.BLAST_YAWS));
+		
 		data = new ScriptData(ctx);
 		data.bar = Defs.BAR;
 		data.carryMode = data.bar.coalRatio > 1 ? CarryMode.COAL : CarryMode.ORE;
@@ -72,14 +74,18 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 		stateStack.push(start);
 	}
 	
-	Statee<ScriptData> start = new Banking();
-	Stack<Statee<ScriptData>> stateStack = new Stack<>();
+	jaccob.blastfurnace.base.State<ScriptData> start = new Banking();
+	Stack<jaccob.blastfurnace.base.State<ScriptData>> stateStack = new Stack<>();
 	
 	ScriptData data = new ScriptData(ctx);
 	
 	@Override
 	public void poll() {
 		while (!ctx.controller.isStopping()) {
+			if (!ctx.game.loggedIn()) {
+				ctx.controller.stop();
+				return;
+			}
 			if (ctx.controller.isSuspended()) {
 				Thread.yield();
 				continue;
@@ -87,13 +93,13 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 			
 			run();
 			if (!stateStack.isEmpty()) {
-				Statee<ScriptData> st = stateStack.peek();
+				jaccob.blastfurnace.base.State<ScriptData> st = stateStack.peek();
 				if (st.start()) {
 					stateStack.clear();
 					stateStack.push(st);
 				}
 				
-				Statee<ScriptData> next = st.update(data);
+				jaccob.blastfurnace.base.State<ScriptData> next = st.update(data);
 				
 				System.out.println(st);
 				

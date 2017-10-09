@@ -10,9 +10,9 @@ import org.powerbot.script.rt4.TextQuery;
 
 import jaccob.blastfurnace.Defs;
 import jaccob.blastfurnace.ScriptData;
-import jaccob.blastfurnace.base.Statee;
+import jaccob.blastfurnace.base.State;
 
-public class PayCoffer extends Statee<ScriptData> {
+public class PayCoffer extends State<ScriptData> {
 
 	final GameObject getCoffer(ClientContext ctx) {
 		GameObject obj = ctx.objects.select().id(Defs.COFFER_IDS).peek();
@@ -34,7 +34,7 @@ public class PayCoffer extends Statee<ScriptData> {
 	}
 	
 	@Override
-	public Statee<ScriptData> update(ScriptData data) {
+	public State<ScriptData> update(ScriptData data) {
 		ClientContext ctx = data.ctx;
 		
 		if (data.methods.invMoney() == 0)

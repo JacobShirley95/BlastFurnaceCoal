@@ -16,11 +16,11 @@ import jaccob.blastfurnace.Defs.CarryMode;
 import jaccob.blastfurnace.ScriptData;
 import jaccob.blastfurnace.base.Interaction;
 import jaccob.blastfurnace.base.ItemInteraction;
-import jaccob.blastfurnace.base.Statee;
+import jaccob.blastfurnace.base.State;
 import jaccob.blastfurnace.base.TileInteraction;
 import jaccob.blastfurnace.base.WidgetInteraction;
 
-public class Banking extends Statee<ScriptData> {
+public class Banking extends State<ScriptData> {
 
 	public Banking() {
 		super();
@@ -83,7 +83,7 @@ public class Banking extends Statee<ScriptData> {
 	}
 
 	@Override
-	public Statee<ScriptData> update(ScriptData data) {
+	public State<ScriptData> update(ScriptData data) {
 		ClientContext ctx = data.ctx;
 		
 		if (!ctx.bank.opened())

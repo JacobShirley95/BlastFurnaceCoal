@@ -12,7 +12,9 @@ public class Defs {
 	
 	public enum BarType {
 		STEEL(2353, 440, true, 110, 1),
-		MITHRIL(2359, 447, true, 111, 2);
+		MITHRIL(2359, 447, true, 111, 2),
+		ADAMANTITE(2361, 449, true, 112, 3),
+		RUNITE(2363, 451, true, 113, 4);
 		
 		public int barId;
 		public int oreId;
@@ -20,6 +22,7 @@ public class Defs {
 		public int dispenserId;
 		public int coalRatio;
 		public int oreTrips;
+		public int coalTrips;
 		
 		BarType(int barId, int oreId, boolean coal, int dispenserId, int coalRatio) {
 			this.barId = barId;
@@ -27,11 +30,16 @@ public class Defs {
 			this.coal = coal;
 			this.dispenserId = dispenserId;
 			this.coalRatio = coalRatio;
+			
+			if (coalRatio % 2 == 1) {
+				coalRatio -= 2;
+			}
+			
 			this.oreTrips = coalRatio;
 		}
 	}
 	
-	public final static BarType BAR = BarType.STEEL;
+	public final static BarType BAR = BarType.ADAMANTITE;
 	
 	public final static int COAL_ID = 453;
 	public final static int COAL_BAG_ID = 12019;

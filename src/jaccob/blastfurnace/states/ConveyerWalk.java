@@ -8,11 +8,11 @@ import jaccob.blastfurnace.Defs;
 import jaccob.blastfurnace.ScriptData;
 import jaccob.blastfurnace.base.ObjectInteraction;
 import jaccob.blastfurnace.base.RandomMouseInteraction;
-import jaccob.blastfurnace.base.Statee;
+import jaccob.blastfurnace.base.State;
 
-public class ConveyerWalk extends Statee<ScriptData>{
+public class ConveyerWalk extends State<ScriptData>{
 	@Override
-	public Statee<ScriptData> update(ScriptData data) {
+	public State<ScriptData> update(ScriptData data) {
 		ClientContext ctx = data.ctx;
 		
 		Tile random = new Tile(1939 + (int)Math.round(Math.random() * 3), 4967);

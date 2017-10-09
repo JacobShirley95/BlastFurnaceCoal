@@ -6,9 +6,9 @@ import org.powerbot.script.rt4.Item;
 import jaccob.blastfurnace.Defs;
 import jaccob.blastfurnace.ScriptData;
 import jaccob.blastfurnace.base.Interaction;
-import jaccob.blastfurnace.base.Statee;
+import jaccob.blastfurnace.base.State;
 
-public class WithdrawMoney extends Statee<ScriptData>{
+public class WithdrawMoney extends State<ScriptData>{
 
 	private int amount;
 
@@ -17,7 +17,7 @@ public class WithdrawMoney extends Statee<ScriptData>{
 	}
 	
 	@Override
-	public Statee<ScriptData> update(ScriptData data) {
+	public State<ScriptData> update(ScriptData data) {
 		ClientContext ctx = data.ctx;
 		Interaction interaction = new Interaction() {
 			@Override
