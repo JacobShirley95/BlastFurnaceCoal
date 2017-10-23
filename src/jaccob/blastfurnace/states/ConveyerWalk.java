@@ -20,7 +20,7 @@ public class ConveyerWalk extends State<ScriptData>{
 		
 		new RandomMouseInteraction(ctx, Defs.BLAST_MOUSE_MOVE_AREA[0], Defs.BANK_MOUSE_MOVE_AREA[1]).prepare();
 		
-		ctx.camera.angle(data.methods.getRandomAngle(Defs.BLAST_YAWS));
+		//ctx.camera.angle(data.methods.getRandomAngle(Defs.BLAST_YAWS));
 		
 		return null;
 	}
