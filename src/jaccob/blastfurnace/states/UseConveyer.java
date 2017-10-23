@@ -4,9 +4,12 @@ import java.awt.Point;
 import java.util.concurrent.Callable;
 
 import org.powerbot.script.Condition;
+import org.powerbot.script.Filter;
+import org.powerbot.script.MenuCommand;
 import org.powerbot.script.Tile;
 import org.powerbot.script.rt4.ClientContext;
 import org.powerbot.script.rt4.GameObject;
+import org.powerbot.script.rt4.Menu;
 import org.powerbot.script.rt4.Widget;
 
 import jaccob.blastfurnace.BlastFurnaceCoal;
@@ -19,6 +22,8 @@ import jaccob.blastfurnace.base.State;
 import jaccob.blastfurnace.base.TileInteraction;
 
 public class UseConveyer extends State<ScriptData>{
+	
+	final Filter<? super MenuCommand> EMPTY_FILTER = Menu.filter("Empty");
 	
 	final State<ScriptData> conveyAndCheck(ScriptData data, int id) {
 		int res = data.methods.wait(data.callables.itemGoneCb(id), data.callables.widgetVisible(Defs.NEED_TO_SMELT_FIRST_ID));
@@ -94,7 +99,9 @@ public class UseConveyer extends State<ScriptData>{
 			if (!data.gotCoal)
 				return null;
 			
-			ctx.inventory.select().id(Defs.COAL_BAG_ID).peek().interact("Empty");
+			if (!ctx.menu.click(EMPTY_FILTER))
+				ctx.inventory.select().id(Defs.COAL_BAG_ID).peek().interact("Empty");
+			
 			conveyer.hover();
 			
 			if (!waitEmptyCoal(ctx))
@@ -124,14 +131,13 @@ public class UseConveyer extends State<ScriptData>{
 								return true;
 							}
 							
-							System.out.println("fail");
-							
 							return false;
 						}
 					}, 20, 10))
 						continue;
 					
-					ctx.inventory.select().id(Defs.COAL_BAG_ID).peek().hover();
+					ctx.inventory.select().id(Defs.COAL_BAG_ID).peek().click(false);
+					ctx.menu.hover(EMPTY_FILTER);
 				} else {
 					if (data.carryMode == Defs.CarryMode.COAL) {
 						new TileInteraction(Defs.BANK_AREA.getRandomTile(), ctx).prepare();
