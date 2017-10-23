@@ -104,7 +104,6 @@ public class Banking extends State<ScriptData> {
 			}
 		})) {
 			data.bank.depositAllExcept(Defs.COAL_BAG_ID);
-			
 			if (finished(data)) {
 				ctx.controller.stop();
 				return null;

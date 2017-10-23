@@ -18,7 +18,7 @@ public class ConveyerWalk extends State<ScriptData>{
 		Tile random = new Tile(1939 + (int)Math.round(Math.random() * 3), 4967);
 		ctx.movement.step(random);
 		
-		new RandomMouseInteraction(ctx, Defs.BLAST_MOUSE_MOVE_AREA[0], Defs.BANK_MOUSE_MOVE_AREA[1]).prepare();
+		new RandomMouseInteraction(ctx, Defs.BLAST_MOUSE_MOVE_AREA[0], Defs.BLAST_MOUSE_MOVE_AREA[1]).prepare();
 		
 		//ctx.camera.angle(data.methods.getRandomAngle(Defs.BLAST_YAWS));
 		
