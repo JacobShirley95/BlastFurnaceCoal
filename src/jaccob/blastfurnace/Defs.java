@@ -76,7 +76,7 @@ public class Defs {
 	public final static Area FOREMAN_AREA = new Area(new Tile(1944, 4958), new Tile(1946, 4960));
 	public final static int FOREMAN_ID = 2923;
 	
-	public final static Point[] BLAST_MOUSE_MOVE_AREA = {new Point(7, 134), new Point(59, 218)};
+	public final static Point[] BLAST_MOUSE_MOVE_AREA = {new Point(7, 104), new Point(49, 218)};
 	public final static Point[] DISPENSER_MOUSE_MOVE_AREA = {new Point(194, 64), new Point(395, 264)};
 	public final static Point[] BANK_MOUSE_MOVE_AREA = {new Point(302, 29), new Point(331, 81)};
 	

@@ -161,9 +161,9 @@ public class BlastFurnaceCoal extends PollingScript<ClientContext> implements Pa
 		int xp = ctx.skills.experience(Constants.SKILLS_SMITHING) - startXP;
 		
 		g2.drawString("Time running: " + formatInterval(getRuntime(), false), 10, 30);
-		g2.drawString("Profit: " + (data.barsMade * barProfit) + "gp (" + ((int)Math.round((barsPerHour * barProfit) / 1000)) + "k / Hr)", 10, 60);
+		g2.drawString("Profit: " + (data.barsMade * barProfit / 1000) + "k (" + ((int)Math.round((barsPerHour * barProfit) / 1000)) + "k / Hr)", 10, 60);
 		g2.drawString("Bar profit: " + barProfit + "gp", 10, 90);
 		g2.drawString("Bars made: " + data.barsMade + " (" + barsPerHour +" / Hr)", 10, 120);
-		g2.drawString("XP: " + xp + " (" + getXPPerHour() + " / Hr)", 10, 150);
+		g2.drawString("XP: " + (xp / 1000) + "k (" + getXPPerHour() + " / Hr)", 10, 150);
 	}
 }

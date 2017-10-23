@@ -12,6 +12,7 @@ import org.powerbot.script.rt4.Widget;
 import jaccob.blastfurnace.BlastFurnaceCoal;
 import jaccob.blastfurnace.Defs;
 import jaccob.blastfurnace.ScriptData;
+import jaccob.blastfurnace.base.Interaction;
 import jaccob.blastfurnace.base.ObjectInteraction;
 import jaccob.blastfurnace.base.RandomMouseInteraction;
 import jaccob.blastfurnace.base.State;
@@ -59,10 +60,10 @@ public class HandleDispenser extends State<ScriptData>{
 
 			@Override
 			public Boolean call() throws Exception {
-				return ctx.players.local().inMotion() || dispenserScreenVis(ctx);
+				return ctx.players.local().inMotion() || dispenserScreenVis(ctx) || ctx.chat.canContinue();
 			}
 			
-		}, 50, 15);
+		}, 50, 40);
 	}
 	
 	@Override
@@ -102,8 +103,17 @@ public class HandleDispenser extends State<ScriptData>{
 										   Defs.DISPENSER_MOUSE_MOVE_AREA[0], 
 										   Defs.DISPENSER_MOUSE_MOVE_AREA[1]).prepare();
 				if (waitForDispenser(ctx)) {
-					if (selectAll(data))
-						new TileInteraction(Defs.BANK_AREA.getRandomTile(), ctx).prepare();
+					if (selectAll(data)) {
+						Interaction i = new TileInteraction(Defs.BANK_AREA.getRandomTile(), ctx);
+						i.prepare();
+						
+						Condition.wait(new Callable<Boolean>() {
+							@Override
+							public Boolean call() throws Exception {
+								return ctx.inventory.select().id(data.bar.barId).count() > 0;
+							}
+						}, 50, 10);
+					}
 					
 					if (ctx.inventory.select().id(data.bar.barId).count() == 27)
 						return new Banking();

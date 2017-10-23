@@ -29,8 +29,8 @@ public class Banking extends State<ScriptData> {
 	final boolean finished(ScriptData data) {
 		ClientContext ctx = data.ctx;
 		return ctx.bank.select().id(data.bar.oreId).count(true) == 0 ||
-			   ctx.bank.select().id(Defs.COAL_ID).count(true) == 0 ||
-			   ctx.bank.select().id(Defs.GOLD_ID).count(true) == 0;
+			   ctx.bank.select().id(Defs.COAL_ID).count(true) == 0;/* ||
+			   ctx.bank.select().id(Defs.GOLD_ID).count(true) == 0;*/
 	}
 	
 	final Component bankCloseComponent(ClientContext ctx) {
@@ -92,7 +92,17 @@ public class Banking extends State<ScriptData> {
 		WidgetInteraction hoverClose = new WidgetInteraction(bankCloseComponent(ctx));
 		
 		data.barsMade += ctx.inventory.select().id(data.bar.barId).count();
-		if (data.bank.depositSmart(data.bar.barId, Amount.ALL.getValue(), new ItemInteraction(ctx, Defs.COAL_ID, true))) {
+		if (data.bank.depositSmart(data.bar.barId, Amount.ALL.getValue(), new ItemInteraction(ctx, Defs.COAL_ID, true) {
+			@Override
+			public boolean prepare() {
+				boolean b = super.prepare();
+				
+				if (ctx.inventory.select().id(data.bar.barId).count() > 0)
+					Condition.sleep(500 + data.methods.randomRange(new int[] {-500, 500}));
+				
+				return b;
+			}
+		})) {
 			data.bank.depositAllExcept(Defs.COAL_BAG_ID);
 			
 			if (finished(data)) {
@@ -115,7 +125,14 @@ public class Banking extends State<ScriptData> {
 			else
 				data.bank.cleverBankOpen(new ItemInteraction(ctx, Defs.COAL_ID, false));
 			
-			data.bank.depositSmart(Defs.COAL_ID, Amount.ALL.getValue(), new ItemInteraction(ctx, data.bar.oreId, true));
+			Interaction interaction = null;
+			if (ctx.movement.energyLevel() < 20) {
+				
+			} else {
+				interaction = new ItemInteraction(ctx, data.bar.oreId, true);
+			}
+			
+			data.bank.depositSmart(Defs.COAL_ID, Amount.ALL.getValue(), interaction);
 
 			if (ctx.movement.energyLevel() < 20) {
 				if (ctx.inventory.select().count() == 28) {
